@@ -19,6 +19,8 @@ __skinpath__     = xbmc.translatePath( "special://skin/shortcuts/" ).decode('utf
 __defaultpath__  = xbmc.translatePath( os.path.join( __cwd__, 'resources', 'shortcuts').encode("utf-8") ).decode("utf-8")
 __xbmcversion__  = xbmc.getInfoLabel( "System.BuildVersion" ).split(".")[0]
 
+storedFreshness = {}
+
 def log(txt):
     try:
         if isinstance (txt,str):
@@ -94,22 +96,25 @@ def connect( createTable = False ):
 def addToDatabase( connection, dateandtime, time, day, media, type, data ):
     c = connection.cursor()
     
-    log( 'INSERT INTO habits (datetime, time, day, media, type, data) VALUES ("%s", "%s", %f, "%s", "%s", "%s")' %( dateandtime, time, day, media, type, data ) )
-    sucess = False
-    while sucess == False:
+    log( 'INSERT INTO habits (datetime, time, day, media, type, data) VALUES ("%s", "%s", %f, "%s", "%s", "%s")' %( dateandtime, time, float( day ), media, type, data ) )
+    success = False
+    while success == False:
         try:
-            c.execute( 'INSERT INTO habits (datetime, time, day, media, type, data) VALUES ("%s", "%s", %f, "%s", "%s", "%s")' %( dateandtime, time, day, media, type, data ) )
-            sucess = True
+            c.execute( 'INSERT INTO habits (datetime, time, day, media, type, data) VALUES ("%s", "%s", %f, "%s", "%s", "%s")' %( dateandtime, time, float( day ), media, type, data ) )
+            success = True
         except:
+            print_exc()
             log( "Unable to write to database. Retrying in 1 second" )
             xbmc.sleep( 1000 )
     
     c.close()
+    del c
     connection.commit()
     
 def getFromDatabase( connection, type ):
     c = connection.cursor()
     
+    foundMedia = False
     combined = {}
     
     # Build the type part of our query
@@ -122,72 +127,131 @@ def getFromDatabase( connection, type ):
     # Build the order-by part of our query
     orderQuery = "datetime DESC, type"
     
-    freshness = [ 0, 0, 0 ]
+    freshness = [ 0.0, 0.0, 0.0 ]
+    count = [ 0.0, 0.0, 0.0, 0.0 ]
     
     # Get weekdays at this time
-    weight = 100 # 100 - 60
-    weightChange = ( ( int( __addon__.getSetting( "dayLimit" ) ) / 7 ) / 40.0 ) * 100
+    weight = 200 # 100 - 60
+    freshWeight = 40
+    weightChange = 50.0 / ( ( int( __addon__.getSetting( "dayLimit" ) ) / 7 ) + 1 )
+    #weightChange = ( ( int( __addon__.getSetting( "dayLimit" ) ) / 7 ) / 40.0 ) * 100
     for x in range( 0, int( __addon__.getSetting( "dayLimit" ) ) + 1, 7 ):
         datetimeStart = str( datetime.now() - timedelta( days = x, hours = int( __addon__.getSetting( "hoursNow" ) ) ) )
         datetimeEnd = str( datetime.now() - timedelta( days = x, hours = -int( __addon__.getSetting( "hoursNow" ) ) ) )
         timeQuery = "datetime BETWEEN '%s' AND '%s'" %( str( datetime.now() - timedelta( days = x, hours = int( __addon__.getSetting( "hoursNow" ) ) ) ), str( datetime.now() - timedelta( days = x, hours = -int( __addon__.getSetting( "hoursNow" ) ) ) ) )
-        sucess = False
-        while sucess == False:
+        success = False
+        while success == False:
             try:
                 result = c.execute( "SELECT *, COUNT(data) FROM habits WHERE %s AND %s GROUP BY type, data ORDER BY %s" %( typeQuery, timeQuery, orderQuery ) )
-                sucess = True
+                success = True
             except:
                 log( "Unable to read from database. Retrying in 1 second" )
                 xbmc.sleep( 1000 )
-        moreFreshness = combineDatabaseResults( combined, result, float( __addon__.getSetting( "dayRecent" ) ), weight, weightChange, False )
-        freshness[ 0 ] += moreFreshness[ 0 ]
-        freshness[ 1 ] += moreFreshness[ 1 ]
-        freshness[ 2 ] += moreFreshness[ 2 ]
+        loopCount = combineDatabaseResults( combined, result, float( __addon__.getSetting( "dayRecent" ) ), weight, weightChange, freshWeight, False )
+        count[ 0 ] += loopCount[ 0 ]
+        count[ 1 ] += loopCount[ 1 ]
+        count[ 2 ] += loopCount[ 2 ]
+        count[ 3 ] += loopCount[ 3 ]
+        #freshness[ 0 ] += moreFreshness[ 0 ]
+        #freshness[ 1 ] += moreFreshness[ 1 ]
+        #freshness[ 2 ] += moreFreshness[ 2 ]
         weight = weight - weightChange
         
+    # Work out freshness
+    if count[ 0 ] != 0:
+        foundMedia = True
+        if count[ 1 ] != 0:
+            freshness[ 0 ] += (40 / count[ 0 ] ) * count[ 1 ]
+        if count[ 2 ] != 0:
+            freshness[ 1 ] += (40 / count[ 0 ] ) * count[ 2 ]
+        if count[ 3 ] != 0:
+            freshness[ 2 ] += (40 / count[ 0 ] ) * count[ 3 ]
+    count = [ 0.0, 0.0, 0.0, 0.0 ]
+        
     # Get everyday at this time
-    weight = 60 # 60 - 30
-    weightChange = int( __addon__.getSetting( "timeLimit" ) ) / 30.0
+    weight = 150 # 60 - 30
+    freshWeight = 30
+    weightChange = 120.0 / ( int( __addon__.getSetting( "timeLimit" ) ) + 1 )
     for x in range( 0, int( __addon__.getSetting( "timeLimit" ) ) + 1, 1 ):
         datetimeStart = str( datetime.now() - timedelta( days = x, hours = int( __addon__.getSetting( "hoursNow" ) ) ) )
         datetimeEnd = str( datetime.now() - timedelta( days = x, hours = -int( __addon__.getSetting( "hoursNow" ) ) ) )
         timeQuery = "datetime BETWEEN '%s' AND '%s'" %( str( datetime.now() - timedelta( days = x, hours = int( __addon__.getSetting( "hoursNow" ) ) ) ), str( datetime.now() - timedelta( days = x, hours = -int( __addon__.getSetting( "hoursNow" ) ) ) ) )
-        sucess = False
-        while sucess == False:
+        success = False
+        while success == False:
             try:
                 result = c.execute( "SELECT *, COUNT(data) FROM habits WHERE %s AND %s GROUP BY type, data ORDER BY %s" %( typeQuery, timeQuery, orderQuery ) )
-                sucess = True
+                success = True
             except:
                 log( "Unable to read from database. Retrying in 1 second" )
                 xbmc.sleep( 1000 )
-        moreFreshness = combineDatabaseResults( combined, result, float( __addon__.getSetting( "timeRecent" ) ), weight, weightChange, False )
-        freshness[ 0 ] += moreFreshness[ 0 ]
-        freshness[ 1 ] += moreFreshness[ 1 ]
-        freshness[ 2 ] += moreFreshness[ 2 ]
+        loopCount = combineDatabaseResults( combined, result, float( __addon__.getSetting( "timeRecent" ) ), weight, weightChange, freshWeight, False )
+        count[ 0 ] += loopCount[ 0 ]
+        count[ 1 ] += loopCount[ 1 ]
+        count[ 2 ] += loopCount[ 2 ]
+        count[ 3 ] += loopCount[ 3 ]
+        #freshness[ 0 ] += moreFreshness[ 0 ]
+        #freshness[ 1 ] += moreFreshness[ 1 ]
+        #freshness[ 2 ] += moreFreshness[ 2 ]
         weight = weight - weightChange
+        
+    # Work out freshness
+    if count[ 0 ] != 0:
+        foundMedia = True
+        if count[ 1 ] != 0:
+            freshness[ 0 ] += (30 / count[ 0 ] ) * count[ 1 ]
+        if count[ 2 ] != 0:
+            freshness[ 1 ] += (30 / count[ 0 ] ) * count[ 2 ]
+        if count[ 3 ] != 0:
+            freshness[ 2 ] += (30 / count[ 0 ] ) * count[ 3 ]
+    count = [ 0.0, 0.0, 0.0, 0.0 ]
+    
+    if foundMedia:
+        # We already have some results, we don't want to bother with all media
+        storedFreshness[ type ] = freshness
+        
+        c.close()
+        return combined, freshness
         
     # Get all
     weight = 30 # 30 - 10
+    freshWeight = 20
     datetimeStart = str( datetime.now() - timedelta( days = int( __addon__.getSetting( "allLimit" ) ) ) )
     datetimeEnd = str( datetime.now() )
     timeQuery = "datetime BETWEEN '%s' AND '%s'" %( str( datetime.now() - timedelta( days = int( __addon__.getSetting( "allLimit" ) ) ) ), str( datetime.now() ) )
-    sucess = False
-    while sucess == False:
+    success = False
+    while success == False:
         try:
             result = c.execute( "SELECT *, COUNT(data) FROM habits WHERE %s AND %s GROUP BY type, data ORDER BY %s" %( typeQuery, timeQuery, orderQuery ) )
-            sucess = True
+            success = True
         except:
             log( "Unable to read from database. Retrying in 1 second" )
             xbmc.sleep( 1000 )
-    moreFreshness = combineDatabaseResults( combined, result, float( __addon__.getSetting( "timeRecent" ) ), weight, 20, False )
-    freshness[ 0 ] += moreFreshness[ 0 ]
-    freshness[ 1 ] += moreFreshness[ 1 ]
-    freshness[ 2 ] += moreFreshness[ 2 ]
+    loopCount = combineDatabaseResults( combined, result, float( __addon__.getSetting( "timeRecent" ) ), weight, 30, freshWeight, False )
+    count[ 0 ] += loopCount[ 0 ]
+    count[ 1 ] += loopCount[ 1 ]
+    count[ 2 ] += loopCount[ 2 ]
+    count[ 3 ] += loopCount[ 3 ]
+    #freshness[ 0 ] += moreFreshness[ 0 ]
+    #freshness[ 1 ] += moreFreshness[ 1 ]
+    #freshness[ 2 ] += moreFreshness[ 2 ]
+    
+    # Work out freshness
+    if count[ 0 ] != 0:
+        if count[ 1 ] != 0:
+            freshness[ 0 ] += (20 / count[ 0 ] ) * count[ 1 ]
+        if count[ 2 ] != 0:
+            freshness[ 1 ] += (20 / count[ 0 ] ) * count[ 2 ]
+        if count[ 3 ] != 0:
+            freshness[ 2 ] += (20 / count[ 0 ] ) * count[ 3 ]
+    count = [ 0, 0, 0, 0 ]
+
+    
+    storedFreshness[ type ] = freshness
     
     c.close()
     return combined, freshness
     
-def combineDatabaseResults( combination, results, freshness, weight = 100, weightChange = 10, showDebug = False ):
+def combineDatabaseResults( combination, results, freshness, weight = 100, weightChange = 10, freshWeight = 10, showDebug = False ):
     total = 0.00
     fresh = 0.00
     recent = 0.00
@@ -235,7 +299,7 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
                 if lastDateTime is None or lastDateTime != row[ 1 ]:
                     count += 1
                 if lastDateTime is None or lastDateTime != row[ 1 ] or lastTag != row[ 5 ]:
-                    if lastDateTime is not None and len( valueList ) != 0 and len( combination[ lastTag ] ) < habitLimit:
+                    if lastDateTime is not None and len( valueList ) != 0:# and len( combination[ lastTag ] ) < habitLimit:
                         # Add what we've previously saved to the combination dictionary
                         uncombined[ lastTag ].append( ( count, valueList ) )
                     # Reset lastDateTime, lastTag, valueList
@@ -270,17 +334,52 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
         for group, group2 in uncombined[ key ]:
             combination[ key ].append( ( weight - ( weightChange * group ), group2 ) )
     
-    if total != 0:
-        if fresh != 0:
-            fresh = ( fresh / total ) * freshness
-        if recent != 0:
-            recent = ( recent / total ) * freshness
-        if live != 0:
-            live = ( live / total ) * freshness
+    #if total != 0:
+    #    log( "Total: %s, fresh: %s, recent: %s, live: %s" %( str( total ), str( fresh ), str( recent ), str( live ) ) )
+    #    
+    #    if fresh != 0:
+    #        #fresh = ( fresh / total ) * freshness
+    #        fresh = (freshWeight / total ) * fresh
+    #    if recent != 0:
+    #        #recent = ( recent / total ) * freshness
+    #        recent = (freshWeight / total ) * recent
+    #    if live != 0:
+    #        #live = ( live / total ) * freshness
+    #        live = (freshWeight / total ) * live
+    #        
+    #    log( "Total: %s, fresh: %s, recent: %s, live: %s" %( str( total ), str( fresh ), str( recent ), str( live ) ) )
+    #        
+    return[ total, fresh, recent, live ]
+    #else:
+    #    return [ 0, 0, 0, 0 ]
+    
+def nextupHabits( habits, item, newvalue ):
+    # Build quick habits from the habits being imported in dbase, to generate
+    # next-up data
+    try:
+        newvalue = str( newvalue.encode( "utf-8" ) )
+    except:
+        newvalue = str( newvalue )
+    
+    if item != "special":
+        # If the key doesn't exist in the habits dictionary, add it
+        if item not in habits.keys():
+            habits[ item ] = [ ( 60, [] ) ]
             
-        return[ int( fresh ), int( recent ), int( live ) ]
-    else:
-        return [ 0, 0, 0 ]
+        # Check that this value doesn't already exist
+        foundValue = False
+        if len( habits[ item ] ) != 0:
+            for weighting, group in habits[ item ]:
+                for value in group:
+                    if value == newvalue:
+                        foundValue = True
+                        break
+                        
+        # The value wasn't found
+        if foundValue == False:
+            habits[ item ][ 0 ][ 1 ].append( newvalue )
+            
+    return habits
 
 def getTMDBExtras( type, itemID, name, year ):
     connection = connect()
@@ -295,11 +394,11 @@ def getTMDBExtras( type, itemID, name, year ):
         pass
     
     # Query database for additional information
-    sucess = False
-    while sucess == False:
+    success = False
+    while success == False:
         try:
             results = c.execute( "SELECT type, data FROM %s WHERE itemID = '%s'" %( type, itemID ) )
-            sucess = True
+            success = True
         except:
             log( "Unable to read from database. Retrying in 1 second" )
             xbmc.sleep( 1000 )
@@ -402,41 +501,71 @@ def getTMDBExtras( type, itemID, name, year ):
     
     # If we got extra data, save it to the database
     c = connection.cursor()
-    sucess = False
-    while sucess == False:
+    success = False
+    count = 0
+    while success == False:
         try:
             c.execute( 'INSERT INTO %s (itemID, type, data) VALUES ( "%s", "%s", "%s" )' %( type, itemID, "Updated", str( datetime.now() ) ) )
-            sucess = True
+            success = True
         except:
-            log( "Unable to write to database. Retrying in 1 second" )
-            xbmc.sleep( 1000 )
+            print_exc()
+            count += 1
+            if count != 5:
+                log( "Unable to write to database. Retrying in 1 second" )
+                xbmc.sleep( 1000 )
+            else:
+                log( "Giving up trying to write to database." )
+                success = true
     for data in keywords:
-        sucess = False
-        while sucess == False:
+        success = False
+        count = 0
+        while success == False:
             try:
                 c.execute( 'INSERT INTO %s (itemID, type, data) VALUES ( "%s", "%s", "%s" )' %( type, itemID, "Keyword", data ) )
-                sucess = True
+                success = True
             except:
-                log( "Unable to write to database. Retrying in 1 second" )
-                xbmc.sleep( 1000 )
+                print_exc()
+                count += 1
+                if count != 5:
+                    log( "Unable to write to database. Retrying in 1 second" )
+                    xbmc.sleep( 1000 )
+                else:
+                    log( "Giving up trying to write to database." )
+                    success = true
     for data in related:
-        sucess = False
-        while sucess == False:
+        success = False
+        count = 0
+        while success == False:
             try:
-                c.execute( 'INSERT INTO %s (itemID, type, data) VALUES ( "%s", "%s", "%s" )' %( type, itemID, "Related", data ) )
-                sucess = True
+                log( 'INSERT INTO %s (itemID, type, data) VALUES ( "%s", "%s", "%s" )' %( type, itemID, "Related", data ) )
+                c.execute( 'INSERT INTO %s (itemID, type, data) VALUES ( "%s", "%s", "%s" )' %( type, itemID, "Related", data.replace( '"', '' ) ) )
+                success = True
             except:
-                log( "Unable to write to database. Retrying in 1 second" )
-                xbmc.sleep( 1000 )
+                print_exc()
+                count += 1
+                if count != 5:
+                    log( "Unable to write to database. Retrying in 1 second" )
+                    xbmc.sleep( 1000 )
+                else:
+                    log( "Giving up trying to write to database." )
+                    success = true
     
-    sucess = False
-    while sucess == False:
+    success = False
+    count = 0
+    while success == False:
         try:
             connection.commit()
-            sucess = True
+            success = True
         except:
-            log( "Unable to write to database. Retrying in 1 second" )
-            xbmc.sleep( 1000 )
+            print_exc()
+            count += 1
+            if count != 5:
+                log( "Unable to write to database. Retrying in 1 second" )
+                xbmc.sleep( 1000 )
+            else:
+                log( "Giving up trying to write to database." )
+                success = true
+
 
     xbmc.sleep( 300 )
     c.close()

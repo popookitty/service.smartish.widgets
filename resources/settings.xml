@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <settings>
+	<category label="Client/Server">
+		<setting label="Role" type="labelenum" values="Server|Client" id="role" />
+		<setting label="Port" type="number" default="45354" id="port" />
+		<setting label="Client settings" type="lsep" />
+		<setting label="Server address" type="ipaddress" id="serverip" />
+	</category>
     <category label="General">
 		<setting label="Number of widget items to return" type="slider" id="returnLimit" default="20" range="1,1,50" option="int" />
-		<setting label="Number of habits to consider" type="slider" id="habitLimit" default="50" range="1,1,200" option="int" />
 		<setting label="Number of hours 'Now' is +/-" type="slider" id="hoursNow" default="2" range="1,1,8" option="int" />
 		<setting label="Number of days history to consider..." type="lsep"/>
 		<setting label="...this weekday at this time" type="slider" id="dayLimit" default="28" range="7,7,56" option="int" />

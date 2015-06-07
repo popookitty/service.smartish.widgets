@@ -26,6 +26,7 @@ __xbmcversion__  = xbmc.getInfoLabel( "System.BuildVersion" ).split(".")[0]
 # Used to make sure we don't display currently playing
 lastplayedType = None
 lastplayedID = None
+nowPlaying = {}
 
 # Used to try and save lots of processing for episodes
 tvshowInformation = {}
@@ -208,9 +209,11 @@ def processRecorded( habits, recordedshows, weighted, item, freshness ):
     recordedshows[ "R" + str( item['recordingid'] ) ] = item
     
     # If the show is current being watched, pass
-    if lastplayedID is not None and lastplayedType == "recorded":
-        if int( item[ "recordingid" ] ) == int( lastplayedID ):
-            return
+    if _playingNow( "recorded", int( item[ "recordingid" ] ) ):
+        return
+    #if lastplayedID is not None and lastplayedType == "recorded":
+    #    if int( item[ "recordingid" ] ) == int( lastplayedID ):
+    #        return
     
     # If this show has been watched, pass
     if item[ 'playcount' ] >= 1:
@@ -248,10 +251,10 @@ def processRecorded( habits, recordedshows, weighted, item, freshness ):
     if dateadded.days <= 2:
         if freshness[ 0 ] != 0 and weight != 0:
             freshnessAddition += ( weight / 100.00 ) * freshness[ 0 ]
-    if dateadded.days <= 7:
+    elif dateadded.days <= 7:
         if freshness[ 1 ] != 0 and weight != 0:
             freshnessAddition += ( weight / 100.00 ) * freshness[ 1 ]
-                
+            
     weight += int( freshnessAddition )
         
     if weight not in weighted.keys():
@@ -270,9 +273,11 @@ def processLive( habits, liveshows, weighted, item, nownext, freshness, addition
     liveshows[ addition + str( item['channelid'] ) ] = item
     
     # If the show is current being watched, pass
-    if lastplayedID is not None and lastplayedType == "pvr":
-        if int( item[ "channelid" ] ) == int( lastplayedID ):
-            return
+    if _playingNow( "pvr", int( item[ "channelid" ] ) ):
+        return
+    #if lastplayedID is not None and lastplayedType == "pvr":
+    #    if int( item[ "channelid" ] ) == int( lastplayedID ):
+    #        return
             
     showtoWeight = nownext[ 0 ]
     
@@ -285,7 +290,7 @@ def processLive( habits, liveshows, weighted, item, nownext, freshness, addition
     
     percentRun = int( ( minutesRun / showLength ) * 100.0 )
             
-    # If progresspercentage is over 70%, and the next program starts within 30 minutes
+    # If progresspercentage is over 80%, and the next program starts within 30 minutes
     # we'll base on the next show, not the current one
     if percentRun > 80 and len( nownext ) == 2:
         # Convert the starttime of the next show to a DateTime object
@@ -341,10 +346,11 @@ def processMovie( habits, movies, weighted, item, freshness ):
     movies[ item['movieid'] ] = item
     
     # If the movie is current being watched, pass
-    
-    if lastplayedID is not None and lastplayedType == "movie":
-        if int( item[ "movieid" ] ) == int( lastplayedID ):
-            return
+    if _playingNow( "movie", int( item[ "movieid" ] ) ):
+        return
+    #if lastplayedID is not None and lastplayedType == "movie":
+    #    if int( item[ "movieid" ] ) == int( lastplayedID ):
+    #        return
     
     # If this movie has been watched, pass
     if item[ 'playcount' ] >= 1:
@@ -435,7 +441,7 @@ def processMovie( habits, movies, weighted, item, freshness ):
     if dateadded.days <= 2:
         if freshness[ 0 ] != 0 and weight != 0:
             freshnessAddition += ( weight / 100.00 ) * freshness[ 0 ]
-    if dateadded.days <= 7:
+    elif dateadded.days <= 7:
         if freshness[ 1 ] != 0 and weight != 0:
             freshnessAddition += ( weight / 100.00 ) * freshness[ 1 ]
                 
@@ -539,9 +545,11 @@ def processTvshows( habits, episodes, weighted, logged, item, freshness ):
         if episode_query.has_key( "result" ) and episode_query[ "result" ].has_key( "episodes" ):
             for episode in episode_query[ "result" ][ "episodes" ]:
                 # Skip the episode if its the last played
-                if lastplayedID is not None and lastplayedType == "episode":
-                    if int( episode[ "episodeid" ] ) == int( lastplayedID ):
-                        continue
+                if _playingNow( "episode", int( episode[ "episodeid" ] ) ):
+                    continue
+                #if lastplayedID is not None and lastplayedType == "episode":
+                #    if int( episode[ "episodeid" ] ) == int( lastplayedID ):
+                #        continue
                 if episode[ "playcount" ] == 0:
                     if addNextUnwatched:
                         # Next unwatched episode after most recently played we've found
@@ -590,7 +598,7 @@ def processTvshows( habits, episodes, weighted, logged, item, freshness ):
         if dateadded.days <= 2:
             if freshness[ 0 ] != 0 and weight != 0:
                 freshnessAddition += ( weight / 100.00 ) * freshness[ 0 ]
-        if dateadded.days <= 7:
+        elif dateadded.days <= 7:
             if freshness[ 1 ] != 0 and weight != 0:
                 freshnessAddition += ( weight / 100.00 ) * freshness[ 1 ]
         
@@ -672,12 +680,10 @@ def buildWidget( mediaType, weighted, items ):
     count = 0
     full_liz = []
     
-    for key in sorted(weighted.keys(), reverse = True):
+    for key in sorted( weighted.keys(), reverse = True ):
         if mediaType == "movie":
             for movieID in weighted[ key ]:
                 log( "(%s) %s" %( key, items[ movieID ][ "title" ] ) )
-                #for score in movieScores[ movieID ]:
-                #    log( " -- %s" %( score ) )
                 count += 1
                 movie_widget( items[ movieID ], full_liz, count )
                 if count >= 50:
@@ -884,7 +890,7 @@ def pvr_widget( item, full_liz, count, itemID ):
             endTime = datetime.strptime( item[ "broadcastnow" ][ "endtime" ], "%Y-%m-%d %H:%M:%S" )
             liz.setProperty( "StartTime", startTime.strftime( "%H:%S" ) )
             liz.setProperty( "EndTime", endTime.strftime( "%H:%S" ) )
-
+            
         # Next Playing
         if "broadcastnext" in item.keys():
             liz.setProperty( "NextStartDate", item[ "broadcastnext" ][ "starttime" ] )
@@ -901,3 +907,27 @@ def pvr_widget( item, full_liz, count, itemID ):
             
         path = "plugin://" + __addonid__ + "/?type=playpvr&id=" + str( item[ "channelid" ] )
         full_liz.append( ( path, liz, False ) )
+        
+def _playingNow( type, id ):
+    # Check whether we (or any client) are currently playing the media
+    for key in nowPlaying:
+        if nowPlaying[ key ][ 0 ] == type and int( nowPlaying[ key ][ 1 ] ) == id:
+            log( "Matched %s - %s" %( type, str( id ) ) )
+            return True
+        return False
+        
+def shrinkJson( type, weighted, json ):
+    # Shrink the whole JSON into just the items needed to build the widget
+    shrunk = {}
+    count = 0
+    
+    for key in sorted( weighted.keys(), reverse = True ):
+        for id in weighted[ key ]:
+            shrunk[ id ] = json[ id ]
+            count += 1
+            if count >= 50:
+                break
+        if count >= 50:
+            break
+                
+    return shrunk

@@ -34,21 +34,24 @@ class Main:
     def __init__(self):
         self._parse_argv()
         
+        host = "localhost"
+        port = int( __addon__.getSetting( "port" ) )
+        
         try:
             clientsocket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-            clientsocket.connect( ( "localhost", 45354 ) )
+            clientsocket.connect( ( host, port ) )
+            log( "(* -> %s) '%s'" %( host, self.TYPE ) )
             if self.ID is None:
-                log( "### (WIDGET) Sending message %s|%s" %( self.TYPE, sys.argv[ 1 ] ) )
-                clientsocket.send( "%s|%s" %( self.TYPE, sys.argv[ 1 ] ) )
+                clientsocket.send( "%s||||%s||||EOD" %( self.TYPE, sys.argv[ 1 ] ) )
             else:
-                log( "### (WIDGET) Sending message %s|%s|%s" %( self.TYPE, self.ID, sys.argv[ 1 ] ) )
-                clientsocket.send( "%s|%s|%s" %( self.TYPE, self.ID, sys.argv[ 1 ] ) )
-            message = clientsocket.recv( 128 )
-            log( "### (WIDGET) Recieved message: " + message )
+                clientsocket.send( "%s||||%s||||%s||||EOD" %( self.TYPE, self.ID, sys.argv[ 1 ] ) )
+            message = clientsocket.recv( 128 ).split( "||||" )
+            log( "(%s -> *) '%s' '%s'" %( host, message[ 0 ], message[ 1 ] ) )
             clientsocket.close()
 
         except:
-            log( "Unable to establish connection to service" )
+            log( "(Widget) Unable to establish connection to service" )
+            print_exc()
             xbmcplugin.endOfDirectory(handle= int(sys.argv[1]))
             
     def _parse_argv( self ):

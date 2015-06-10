@@ -258,8 +258,6 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
     live = 0.00
     recorded = 0.00
     
-    habitLimit = int( __addon__.getSetting( "habitLimit" ) )
-    
     lastDateTime = None
     lastTag = None
     valueList = []
@@ -299,7 +297,7 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
                 if lastDateTime is None or lastDateTime != row[ 1 ]:
                     count += 1
                 if lastDateTime is None or lastDateTime != row[ 1 ] or lastTag != row[ 5 ]:
-                    if lastDateTime is not None and len( valueList ) != 0:# and len( combination[ lastTag ] ) < habitLimit:
+                    if lastDateTime is not None and len( valueList ) != 0:
                         # Add what we've previously saved to the combination dictionary
                         uncombined[ lastTag ].append( ( count, valueList ) )
                     # Reset lastDateTime, lastTag, valueList

@@ -86,11 +86,11 @@ class Main:
             self._daemon()
 
             # Clear xbmcgui items
-            self.movieWidget = None
-            self.episodeWidget = None
-            self.albumWidget = None
-            self.pvrWidget = None
-            self.nextupWidget = None
+            self.movieWidget = []
+            self.episodeWidget = []
+            self.albumWidget = []
+            self.pvrWidget = []
+            self.nextupWidget = []
         except:
             log( "script (service) fatal error" )
             print_exc()
@@ -108,12 +108,12 @@ class Main:
         self.WINDOW = xbmcgui.Window(10000)
         self.playingLiveTV = False
 
-        self.movieWidget = None
-        self.episodeWidget = None
-        self.albumWidget = None
-        self.pvrWidget = None
+        self.movieWidget = []
+        self.episodeWidget = []
+        self.albumWidget = []
+        self.pvrWidget = []
 
-        self.nextupWidget = None
+        self.nextupWidget = []
 
         self.movieLastUpdated = 0
         self.episodeLastUpdated = 0
@@ -204,19 +204,19 @@ class Main:
                 # Messages from widget:
 
                 # Display Widget
-                if data[ 0 ] == "movies" and self.movieWidget is not None:
+                if data[ 0 ] == "movies":
                     xbmcplugin.setContent( int( data[ 1 ] ), "movies" )
                     xbmcplugin.addDirectoryItems( int( data[1] ),self.movieWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
-                if data[ 0 ] == "episodes" and self.episodeWidget is not None:
+                if data[ 0 ] == "episodes":
                     xbmcplugin.setContent( int( data[ 1 ] ), "episodes" )
                     xbmcplugin.addDirectoryItems( int( data[1] ),self.episodeWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
-                if data[ 0 ] == "albums" and self.albumWidget is not None:
+                if data[ 0 ] == "albums":
                     xbmcplugin.setContent( int( data[ 1 ] ), "albums" )
                     xbmcplugin.addDirectoryItems( int( data[1] ),self.albumWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
-                if data[ 0 ] == "pvr" and self.pvrWidget is not None:
+                if data[ 0 ] == "pvr":
                     xbmcplugin.addDirectoryItems( int( data[1] ),self.pvrWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
 

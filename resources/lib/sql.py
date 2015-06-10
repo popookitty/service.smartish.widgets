@@ -3,7 +3,7 @@ import os, sys
 from datetime import datetime, timedelta
 import xbmc, xbmcgui, xbmcaddon, xbmcvfs, urllib
 from traceback import print_exc
-    
+
 import sqlite3
 import tmdb
 
@@ -29,27 +29,27 @@ def log(txt):
         xbmc.log(msg=message.encode('utf-8'), level=xbmc.LOGDEBUG)
     except:
         pass
-            
+
 def connect( createTable = False ):
     # Ensure datapath exists
     if not xbmcvfs.exists(__datapath__):
         xbmcvfs.mkdir(__datapath__)
-        
+
     # Connect to the database
     connection = sqlite3.connect( os.path.join( __datapath__, "database.db" ) )
     connection.text_factory = str
     c = connection.cursor()
-    
+
     if createTable:
         # Test code - drop tables
         #c.execute( "DROP TABLE habits" )
         #c.execute( "DROP TABLE episode" )
         #c.execute( "DROP TABLE movie" )
         #connection.commit()
-    
+
         # Check if the default table exists
         c.execute( 'SELECT * FROM sqlite_master WHERE name="habits" AND type="table"')
-        
+
         if len( c.fetchall() ) == 0:
             # No table exists, so create it
             c.execute( '''CREATE TABLE habits (
@@ -62,10 +62,10 @@ def connect( createTable = False ):
                 data TEXT
                 )''' )
             connection.commit()
-        
+
         # Check if the additional TV info table exists
         c.execute( 'SELECT * FROM sqlite_master WHERE name="episode" AND type="table"')
-        
+
         if len( c.fetchall() ) == 0:
             # No table exists, so create it
             c.execute( '''CREATE TABLE episode (
@@ -75,10 +75,10 @@ def connect( createTable = False ):
                 data TEXT
                 )''' )
             connection.commit()
-            
+
         # Check if the additional TV info table exists
         c.execute( 'SELECT * FROM sqlite_master WHERE name="movie" AND type="table"')
-        
+
         if len( c.fetchall() ) == 0:
             # No table exists, so create it
             c.execute( '''CREATE TABLE movie (
@@ -88,14 +88,14 @@ def connect( createTable = False ):
                 data TEXT
                 )''' )
             connection.commit()
-        
+
     # Return the database connection
     c.close()
     return connection
-    
+
 def addToDatabase( connection, dateandtime, time, day, media, type, data ):
     c = connection.cursor()
-    
+
     log( 'INSERT INTO habits (datetime, time, day, media, type, data) VALUES ("%s", "%s", %f, "%s", "%s", "%s")' %( dateandtime, time, float( day ), media, type, data ) )
     success = False
     while success == False:
@@ -106,30 +106,30 @@ def addToDatabase( connection, dateandtime, time, day, media, type, data ):
             print_exc()
             log( "Unable to write to database. Retrying in 1 second" )
             xbmc.sleep( 1000 )
-    
+
     c.close()
     del c
     connection.commit()
-    
+
 def getFromDatabase( connection, type ):
     c = connection.cursor()
-    
+
     foundMedia = False
     combined = {}
-    
+
     # Build the type part of our query
     if type == "pvr":
         # We need to retrieve both 'recorded' and 'live'
         typeQuery = "(media = 'recorded' OR media = 'live')"
     else:
         typeQuery = "media = '%s'" % type
-        
+
     # Build the order-by part of our query
     orderQuery = "datetime DESC, type"
-    
+
     freshness = [ 0.0, 0.0, 0.0 ]
     count = [ 0.0, 0.0, 0.0, 0.0 ]
-    
+
     # Get weekdays at this time
     weight = 200 # 100 - 60
     freshWeight = 40
@@ -156,7 +156,7 @@ def getFromDatabase( connection, type ):
         #freshness[ 1 ] += moreFreshness[ 1 ]
         #freshness[ 2 ] += moreFreshness[ 2 ]
         weight = weight - weightChange
-        
+
     # Work out freshness
     if count[ 0 ] != 0:
         foundMedia = True
@@ -167,7 +167,7 @@ def getFromDatabase( connection, type ):
         if count[ 3 ] != 0:
             freshness[ 2 ] += (40 / count[ 0 ] ) * count[ 3 ]
     count = [ 0.0, 0.0, 0.0, 0.0 ]
-        
+
     # Get everyday at this time
     weight = 150 # 60 - 30
     freshWeight = 30
@@ -193,7 +193,7 @@ def getFromDatabase( connection, type ):
         #freshness[ 1 ] += moreFreshness[ 1 ]
         #freshness[ 2 ] += moreFreshness[ 2 ]
         weight = weight - weightChange
-        
+
     # Work out freshness
     if count[ 0 ] != 0:
         foundMedia = True
@@ -204,14 +204,14 @@ def getFromDatabase( connection, type ):
         if count[ 3 ] != 0:
             freshness[ 2 ] += (30 / count[ 0 ] ) * count[ 3 ]
     count = [ 0.0, 0.0, 0.0, 0.0 ]
-    
+
     if foundMedia:
         # We already have some results, we don't want to bother with all media
         storedFreshness[ type ] = freshness
-        
+
         c.close()
         return combined, freshness
-        
+
     # Get all
     weight = 30 # 30 - 10
     freshWeight = 20
@@ -234,7 +234,7 @@ def getFromDatabase( connection, type ):
     #freshness[ 0 ] += moreFreshness[ 0 ]
     #freshness[ 1 ] += moreFreshness[ 1 ]
     #freshness[ 2 ] += moreFreshness[ 2 ]
-    
+
     # Work out freshness
     if count[ 0 ] != 0:
         if count[ 1 ] != 0:
@@ -245,27 +245,27 @@ def getFromDatabase( connection, type ):
             freshness[ 2 ] += (20 / count[ 0 ] ) * count[ 3 ]
     count = [ 0, 0, 0, 0 ]
 
-    
+
     storedFreshness[ type ] = freshness
-    
+
     c.close()
     return combined, freshness
-    
+
 def combineDatabaseResults( combination, results, freshness, weight = 100, weightChange = 10, freshWeight = 10, showDebug = False ):
     total = 0.00
     fresh = 0.00
     recent = 0.00
     live = 0.00
     recorded = 0.00
-    
+
     lastDateTime = None
     lastTag = None
     valueList = []
-    
+
     uncombined = {}
-    
+
     count = -1
-    
+
     for row in results:
         if showDebug:
             log( repr( row ) )
@@ -275,7 +275,7 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
                 combination[ row[ 5 ] ] = []
             if row[ 5 ] not in uncombined.keys():
                 uncombined[ row[ 5 ] ] = []
-                
+
             # Check that this value doesn't already exist in the combination dictionary
             foundValue = False
             if len( combination[ row[ 5 ] ] ) != 0:
@@ -284,14 +284,14 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
                         if value == row[ 6 ]:
                             foundValue = True
                             break
-                            
+
             if len( uncombined[ row[ 5 ] ] ) != 0:
                 for weighting, group in uncombined[ row[ 5 ] ]:
                     for value in group:
                         if value == row[ 6 ]:
                             foundValue = True
                             break
-                        
+
             # The value wasn't found
             if foundValue == False:
                 if lastDateTime is None or lastDateTime != row[ 1 ]:
@@ -315,26 +315,26 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
                 recent += row[ 7 ]
             elif row[ 6 ] == "playedlive":
                 live += row[ 7 ]
-                
+
     # We've processed all rows, so add the last tag we found
     if lastDateTime is not None and len( valueList ) != 0:
         # Add what we've previously saved to the combination dictionary
         uncombined[ lastTag ].append( ( count, valueList ) )
-        
+
     # Now add to combined database, replacing count with weight
     count += 1
     if count != 0:
         weightChange = float( weightChange ) / count
     else:
         weightChange = 0
-        
+
     for key in uncombined.keys():
         for group, group2 in uncombined[ key ]:
             combination[ key ].append( ( weight - ( weightChange * group ), group2 ) )
-    
+
     #if total != 0:
     #    log( "Total: %s, fresh: %s, recent: %s, live: %s" %( str( total ), str( fresh ), str( recent ), str( live ) ) )
-    #    
+    #
     #    if fresh != 0:
     #        #fresh = ( fresh / total ) * freshness
     #        fresh = (freshWeight / total ) * fresh
@@ -344,13 +344,13 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
     #    if live != 0:
     #        #live = ( live / total ) * freshness
     #        live = (freshWeight / total ) * live
-    #        
+    #
     #    log( "Total: %s, fresh: %s, recent: %s, live: %s" %( str( total ), str( fresh ), str( recent ), str( live ) ) )
-    #        
+    #
     return[ total, fresh, recent, live ]
     #else:
     #    return [ 0, 0, 0, 0 ]
-    
+
 def nextupHabits( habits, item, newvalue ):
     # Build quick habits from the habits being imported in dbase, to generate
     # next-up data
@@ -358,12 +358,12 @@ def nextupHabits( habits, item, newvalue ):
         newvalue = str( newvalue.encode( "utf-8" ) )
     except:
         newvalue = str( newvalue )
-    
+
     if item != "special":
         # If the key doesn't exist in the habits dictionary, add it
         if item not in habits.keys():
             habits[ item ] = [ ( 60, [] ) ]
-            
+
         # Check that this value doesn't already exist
         foundValue = False
         if len( habits[ item ] ) != 0:
@@ -372,17 +372,17 @@ def nextupHabits( habits, item, newvalue ):
                     if value == newvalue:
                         foundValue = True
                         break
-                        
+
         # The value wasn't found
         if foundValue == False:
             habits[ item ][ 0 ][ 1 ].append( newvalue )
-            
+
     return habits
 
 def getTMDBExtras( type, itemID, name, year ):
     connection = connect()
     c = connection.cursor()
-    
+
     # Trim any year from the name (improves results)
     try:
         if name[ -6 ] == "(":
@@ -390,7 +390,7 @@ def getTMDBExtras( type, itemID, name, year ):
     except:
         # Name probably too short
         pass
-    
+
     # Query database for additional information
     success = False
     while success == False:
@@ -400,12 +400,12 @@ def getTMDBExtras( type, itemID, name, year ):
         except:
             log( "Unable to read from database. Retrying in 1 second" )
             xbmc.sleep( 1000 )
-    
+
     keywords = []
     related = []
-    
+
     retrieved = False
-    
+
     for row in results:
         if row[ 0 ] == "Keyword":
             keywords.append( row[ 1 ].decode( "utf-8" ) )
@@ -413,35 +413,35 @@ def getTMDBExtras( type, itemID, name, year ):
             related.append( row[ 1 ].decode( "utf-8" ) )
         if row[ 0 ] == "Updated":
             retrieved = True
-        
+
     c.close()
-    
+
     if retrieved:
         return( keywords, related )
-        
+
     # No extra information - go get it :)
     if __addon__.getSetting( "getTMDB" ) == "false":
         # Actually, don't get it
         return( [], [] )
-    
+
     if type == "episode":
         # Get the ID of the show
         response = tmdb.GetTMDBTVShow( name, year )
-        
+
         if response is None:
             xbmc.sleep( 300 )
             log( "No response" )
             return( [], [] )
-        
+
         for tmdbResponse in response:
             if "id" in tmdbResponse.keys():
                 # Get the related and keywords
                 response2 = tmdb.GetTMDBTVShowDetails( tmdbResponse[ "id" ] )
-                
+
                 if response2 is None:
                     xbmc.sleep( 300 )
                     return( [], [] )
-                    
+
                 # Process keywords
                 if "keywords" in response2 and "results" in response2[ "keywords" ]:
                     keywordData = response2[ "keywords" ][ "results" ]
@@ -449,7 +449,7 @@ def getTMDBExtras( type, itemID, name, year ):
                         keywords.append( keyword[ "name" ].lower() )
                 else:
                     keywords = None
-                    
+
                 # Process related
                 if "similar" in response2 and "results" in response2[ "similar" ]:
                     relatedData = response2[ "similar" ][ "results" ]
@@ -461,21 +461,21 @@ def getTMDBExtras( type, itemID, name, year ):
     elif type == "movie":
         # Get the ID of the movie
         response = tmdb.GetTMDBMovie( name, year )
-        
+
         if response is None:
             xbmc.sleep( 300 )
             log( "No response" )
             return( [], [] )
-        
+
         for tmdbResponse in response:
             if "id" in tmdbResponse.keys():
                 # Get the related and keywords
                 response2 = tmdb.GetTMDBMovieDetails( tmdbResponse[ "id" ] )
-                
+
                 if response2 is None:
                     xbmc.sleep( 300 )
                     return( [], [] )
-                    
+
                 # Process keywords
                 if "keywords" in response2 and "keywords" in response2[ "keywords" ]:
                     keywordData = response2[ "keywords" ][ "keywords" ]
@@ -483,7 +483,7 @@ def getTMDBExtras( type, itemID, name, year ):
                         keywords.append( keyword[ "name" ].lower() )
                 else:
                     keywords = None
-                    
+
                 # Process related
                 if "similar" in response2 and "results" in response2[ "similar" ]:
                     relatedData = response2[ "similar" ][ "results" ]
@@ -492,11 +492,11 @@ def getTMDBExtras( type, itemID, name, year ):
                 else:
                     related = None
             break
-    
+
     if keywords is None or related is None:
         xbmc.sleep( 300 )
         return( [], [] )
-    
+
     # If we got extra data, save it to the database
     c = connection.cursor()
     success = False
@@ -547,7 +547,7 @@ def getTMDBExtras( type, itemID, name, year ):
                 else:
                     log( "Giving up trying to write to database." )
                     success = true
-    
+
     success = False
     count = 0
     while success == False:

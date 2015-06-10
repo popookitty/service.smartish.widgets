@@ -1,13 +1,13 @@
 # coding=utf-8
-import os, sys
+import os
 from datetime import datetime, timedelta
-import xbmc, xbmcgui, xbmcaddon, xbmcvfs, urllib
+import xbmc
+import xbmcaddon
+import xbmcvfs
 from traceback import print_exc
 
 import sqlite3
 import tmdb
-
-import cPickle as pickle
 
 __addon__        = xbmcaddon.Addon()
 __addonid__      = __addon__.getAddonInfo('id')

@@ -1,7 +1,10 @@
 # coding=utf-8
-import os, sys
-from datetime import datetime, timedelta
-import xbmc, xbmcgui, xbmcaddon, xbmcvfs, urllib
+import os
+import sys
+from datetime import datetime
+import xbmc
+import xbmcgui
+import xbmcaddon
 from traceback import print_exc
 import hashlib
 

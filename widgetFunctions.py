@@ -1,19 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import os
 import sys
 import xbmc
-import xbmcgui
 import xbmcplugin
 import xbmcaddon
-import xbmcvfs
-import random
-import urllib
-import datetime
 import socket
 from traceback import print_exc
-from time import gmtime, strftime
 
 if sys.version_info < (2, 7):
     import simplejson

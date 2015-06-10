@@ -19,7 +19,7 @@ if sys.version_info < (2, 7):
     import simplejson
 else:
     import json as simplejson
-    
+
 __addon__        = xbmcaddon.Addon()
 __addonversion__ = __addon__.getAddonInfo('version')
 __addonid__      = __addon__.getAddonInfo('id')
@@ -33,10 +33,10 @@ def log(txt):
 class Main:
     def __init__(self):
         self._parse_argv()
-        
+
         host = "localhost"
         port = int( __addon__.getSetting( "port" ) )
-        
+
         try:
             clientsocket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
             clientsocket.connect( ( host, port ) )
@@ -53,7 +53,7 @@ class Main:
             log( "(Widget) Unable to establish connection to service" )
             print_exc()
             xbmcplugin.endOfDirectory(handle= int(sys.argv[1]))
-            
+
     def _parse_argv( self ):
         try:
             params = dict( arg.split( "=" ) for arg in sys.argv[ 2 ].split( "&" ) )

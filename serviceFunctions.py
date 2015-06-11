@@ -341,7 +341,7 @@ class Main:
                     count = 0
             if __addon__.getSetting( "role" ) == "Server" and ( len( self.clients ) != 0 or xbmc.getCondVisibility( "Skin.HasSetting(enable.smartish.widgets)" ) ):
                 count += 1
-                if count >= 60 or self.movieWidget is None or self.episodeWidget is None or self.albumWidget is None or self.pvrWidget is None:
+                if count >= 60 or self.lastMovieHabits is None or self.lastEpisodeHabits is None or self.lastAlbumHabits is None or self.lastPVRHabits is None:
                     nextWidget = self._getNextWidget()
 
                     if nextWidget is not None:

@@ -204,20 +204,21 @@ class Main:
                 # Messages from widget:
 
                 # Display Widget
+                returnlimit = int( __addon__.getSetting( "returnLimit" ) )
                 if data[ 0 ] == "movies":
                     xbmcplugin.setContent( int( data[ 1 ] ), "movies" )
-                    xbmcplugin.addDirectoryItems( int( data[1] ),self.movieWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
+                    xbmcplugin.addDirectoryItems( int( data[1] ),self.movieWidget[:returnlimit] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
                 if data[ 0 ] == "episodes":
                     xbmcplugin.setContent( int( data[ 1 ] ), "episodes" )
-                    xbmcplugin.addDirectoryItems( int( data[1] ),self.episodeWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
+                    xbmcplugin.addDirectoryItems( int( data[1] ),self.episodeWidget[:returnlimit] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
                 if data[ 0 ] == "albums":
                     xbmcplugin.setContent( int( data[ 1 ] ), "albums" )
-                    xbmcplugin.addDirectoryItems( int( data[1] ),self.albumWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
+                    xbmcplugin.addDirectoryItems( int( data[1] ),self.albumWidget[:returnlimit] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
                 if data[ 0 ] == "pvr":
-                    xbmcplugin.addDirectoryItems( int( data[1] ),self.pvrWidget[:int( __addon__.getSetting( "returnLimit" ) )] )
+                    xbmcplugin.addDirectoryItems( int( data[1] ),self.pvrWidget[:returnlimit] )
                     xbmcplugin.endOfDirectory( handle=int( data[1] ) )
 
                 # Play media
@@ -507,7 +508,7 @@ class Main:
         library.lastplayedType = None
         library.nowPlaying.pop( "localhost", None )
 
-        self.nextupWidget = None
+        self.nextupWidget = []
 
         self.playingLiveTV = False
 
@@ -537,7 +538,7 @@ class Main:
 
         json_query = simplejson.loads(json_query)
 
-        if json_query.has_key('result'):
+        if json_query.has_key('result') and json_query[ "result" ]:
             playerid = json_query[ "result" ][ 0 ][ "playerid" ]
 
             # Get details of the playing media
@@ -996,8 +997,8 @@ class Main:
 
 
     def buildNextUpWidget( self, type, habits ):
-        if type is None: return
-        if type != "movie" and type != "episode": return
+        if type is None: return []
+        if type != "movie" and type != "episode": return []
 
         log( "Updating %s nextup" %( type ) )
         weighted, items = library.getMedia( type, habits, ( 10, 10, 0 ) )
@@ -1009,11 +1010,9 @@ class Main:
 
         # Generate the widgets
         if weighted is not None:
-            listitems = library.buildWidget( type, weighted, items )
+            self.nextupWidget = library.buildWidget( type, weighted, items )
         else:
-            listitems = None
-
-        self.nextupWidget = listitems
+            self.nextupWidget = []
 
         log( "Updated %s nextup" %( type ) )
 

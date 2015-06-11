@@ -257,7 +257,7 @@ def combineDatabaseResults( combination, results, freshness, weight = 100, weigh
     recent = 0.00
     live = 0.00
     recorded = 0.00
-
+    
     lastDateTime = None
     lastTag = None
     valueList = []
